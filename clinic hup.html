@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Clinic SaaS Pro - Enterprise Edition</title>
+    <!-- Tailwind & FontAwesome -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
+        body { font-family: 'Cairo', sans-serif; background-color: #f8fafc; transition: all 0.3s ease; }
+        .hidden-page { display: none !important; }
+        .nav-active { background: linear-gradient(135deg, #2563eb, #4f46e5); color: white !important; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.4); }
+        .btn-primary { background: linear-gradient(135deg, #2563eb, #4f46e5); color: white; transition: all 0.2s; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); }
+        .btn-success { background: linear-gradient(135deg, #10b981, #059669); color: white; transition: all 0.2s; }
+        .btn-success:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
+        .btn-warning { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; transition: all 0.2s; }
+        .en-font { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        @media print {
+            body { background-color: white !important; height: auto !important; overflow: visible !important; display: block !important; }
+            aside, main, header, .no-print, .modals-container { display: none !important; }
+            #printArea { display: block !important; position: absolute !important; width: 100% !important; left: 0 !important; top: 0 !important; padding: 0 !important; margin: 0 !important; visibility: visible !important; z-index: 9999; }
+            #printArea * { visibility: visible !important; }
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden text-gray-800">
+
+    <!-- النوافذ المنبثقة (Modals) -->
+    <div class="modals-container no-print">
+        <!-- نافذة الفوترة -->
+        <div id="billingModal" class="hidden fixed inset-0 bg-slate-900/60 z-[200] flex items-center justify-center backdrop-blur-sm">
+            <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm border-t-4 border-green-500">
+                <h3 class="text-xl font-bold mb-4 text-green-700 border-b pb-2"><i class="fas fa-file-invoice-dollar mx-2"></i>تأكيد الدفع والحضور</h3>
+                <input type="hidden" id="billAppId"><input type="hidden" id="billPatId">
+                <div class="space-y-4 mb-6 text-center">
+                    <p class="text-sm text-gray-500" id="billServiceTxt">قيمة الخدمة</p>
+                    <p class="text-4xl font-extrabold text-gray-800 en-font"><span id="billAmount">0</span> EGP</p>
+                </div>
+                <div class="flex justify-end gap-2">
+                    <button onclick="closeModal('billingModal')" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold hover:bg-gray-300">إلغاء</button>
+                    <button onclick="confirmArrivalAndPay()" class="btn-success px-4 py-2 rounded-lg font-bold">تحصيل الإيراد</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- نافذة إدخال نتائج التحاليل والأشعة -->
+        <div id="testResultModal" class="hidden fixed inset-0 bg-slate-900/60 z-[200] flex items-center justify-center backdrop-blur-sm">
+            <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-lg border-t-4 border-purple-500">
+                <h3 class="text-xl font-bold mb-4 text-purple-700 border-b pb-2">
+                    <i class="fas fa-microscope mx-2"></i>تسجيل نتيجة فحص: <span id="trTitle" class="text-gray-800 en-font"></span>
+                </h3>
+                <input type="hidden" id="trPatId">
+                <input type="hidden" id="trVisitId">
+                <input type="hidden" id="trReqId">
+                <input type="hidden" id="trReqType">
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-bold mb-2 text-gray-700">النتيجة / التقرير الطبي</label>
+                    <textarea id="trResultText" rows="6" class="w-full border-2 p-3 rounded-xl text-sm outline-none focus:border-purple-500" placeholder="اكتب نتيجة التحليل أو تقرير الأشعة هنا..."></textarea>
+                </div>
+                <div class="flex justify-end gap-2 mt-6">
+                    <button onclick="closeModal('testResultModal')" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold hover:bg-gray-300">إلغاء</button>
+                    <button onclick="saveTestResult()" class="bg-purple-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-purple-700 shadow">حفظ النتيجة</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- نافذة تعديل المؤسسة -->
+        <div id="editOrgModal" class="hidden fixed inset-0 bg-slate-900/60 z-[200] flex items-center justify-center backdrop-blur-sm">
+            <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-md border-t-4 border-yellow-500">
+                <h3 class="text-xl font-bold mb-4 text-yellow-700 border-b pb-2"><i class="fas fa-edit mx-2"></i>تعديل بيانات المؤسسة</h3>
+                <input type="hidden" id="editOrgId">
+                <div class="space-y-4 mb-4">
+                    <div><label class="block text-xs font-bold mb-1">اسم المؤسسة</label><input type="text" id="editOrgName" class="w-full border p-2 rounded outline-none"></div>
+                    <div class="flex gap-2">
+                        <div class="w-1/2"><label class="block text-xs font-bold mb-1">تاريخ البداية</label><input type="date" id="editOrgStart" class="w-full border p-2 rounded outline-none"></div>
+                        <div class="w-1/2"><label class="block text-xs font-bold mb-1">تاريخ الانتهاء</label><input type="date" id="editOrgEnd" class="w-full border p-2 rounded outline-none"></div>
+                    </div>
+                    <div><label class="block text-xs font-bold mb-1">حالة الحساب</label><select id="editOrgStatus" class="w-full border p-2 rounded font-bold outline-none"><option value="active">نشط (Active)</option><option value="suspended">موقوف (Suspended)</option></select></div>
+                </div>
+                <div class="flex justify-end gap-2 mt-6">
+                    <button onclick="closeModal('editOrgModal')" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold hover:bg-gray-300">إلغاء</button>
+                    <button onclick="saveOrgEdit()" class="btn-warning px-4 py-2 rounded-lg font-bold">حفظ التعديلات</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- نافذة تعديل المستخدم -->
+        <div id="editUserModal" class="hidden fixed inset-0 bg-slate-900/60 z-[200] flex items-center justify-center backdrop-blur-sm">
+            <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-lg border-t-4 border-pink-500">
+                <h3 class="text-xl font-bold mb-4 text-pink-700 border-b pb-2"><i class="fas fa-user-edit mx-2"></i>تعديل المستخدم والصلاحيات</h3>
+                <input type="hidden" id="editUserId">
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div class="col-span-2"><label class="block text-xs font-bold mb-1">الاسم</label><input type="text" id="editUserName" class="w-full border p-2 rounded outline-none"></div>
+                    <div><label class="block text-xs font-bold mb-1">كلمة المرور الجديدة</label><input type="text" id="editUserPass" placeholder="اتركه فارغاً لعدم التغيير" class="w-full border p-2 rounded outline-none en-font"></div>
+                    <div><label class="block text-xs font-bold mb-1">الدور / الصلاحية</label>
+                        <select id="editUserRole" class="w-full border p-2 rounded font-bold outline-none">
+                            <option value="doctor">طبيب</option>
+                            <option value="reception">موظف استقبال</option>
+                            <option value="branch_supervisor">مشرف فرع</option>
+                            <option value="admin">مدير نظام</option>
+                        </select>
+                    </div>
+                    <div class="col-span-2" id="editSpecContainer"><label class="block text-xs font-bold mb-1">التخصص (للطبيب)</label><input type="text" id="editUserSpec" class="w-full border p-2 rounded outline-none"></div>
+                    <div class="col-span-2"><label class="block text-xs font-bold mb-1">تعديل فروع الدخول</label><div id="editUserBranches" class="check-grid bg-slate-50 p-2 border rounded max-h-32 overflow-y-auto"></div></div>
+                    <div class="col-span-2"><label class="block text-xs font-bold mb-1">حالة الحساب</label><select id="editUserStatus" class="w-full border-2 border-red-200 p-2 rounded font-bold outline-none text-red-700"><option value="active">مفعل (Active)</option><option value="suspended">إيقاف الحساب (Suspended)</option></select></div>
+                </div>
+                <div class="flex justify-end gap-2 mt-4">
+                    <button onclick="closeModal('editUserModal')" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold hover:bg-gray-300">إلغاء</button>
+                    <button onclick="saveUserEdit()" class="bg-pink-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-pink-700 transition">حفظ بيانات المستخدم</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- شاشة الدخول -->
+    <div id="loginScreen" class="absolute inset-0 bg-slate-900 z-[100] flex items-center justify-center bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]">
+        <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-md relative overflow-hidden border-t-8 border-blue-600">
+            <div class="text-center mb-6"><div class="inline-block bg-blue-50 p-4 rounded-full mb-3"><i class="fas fa-clinic-medical text-5xl text-blue-600"></i></div><h1 class="text-3xl font-extrabold text-gray-800">Cloud Clinic SaaS</h1></div>
+            <div id="loginForm" class="space-y-4">
+                <input type="text" id="loginUsername" placeholder="Username" class="w-full border-2 p-3 rounded-xl en-font outline-none focus:border-blue-500" dir="ltr">
+                <input type="password" id="loginPassword" placeholder="******" class="w-full border-2 p-3 rounded-xl en-font outline-none focus:border-blue-500" dir="ltr" onkeyup="if(event.key === 'Enter') handleLogin()">
+                <div id="loginError" class="hidden text-red-600 text-sm font-bold text-center bg-red-50 p-3 rounded-lg border border-red-200"></div>
+                <button onclick="handleLogin()" class="w-full btn-primary p-4 rounded-xl font-bold text-lg">دخول النظام</button>
+            </div>
+            <div id="qaQuickLogin" class="mt-6 border-t border-gray-200 pt-4">
+                <p class="text-xs text-gray-500 font-bold mb-3 text-center">أزرار الدخول السريع للاختبار:</p>
+                <div class="grid grid-cols-4 gap-2 mb-3">
+                    <button onclick="quickLogin('admin', '123')" class="bg-indigo-100 text-indigo-700 p-2 rounded-lg text-xs font-bold">Admin</button>
+                    <button onclick="quickLogin('sup_maadi', '123')" class="bg-purple-100 text-purple-700 p-2 rounded-lg text-xs font-bold">Supervisor</button>
+                    <button onclick="quickLogin('dr_ahmed', '123')" class="bg-blue-100 text-blue-700 p-2 rounded-lg text-xs font-bold">Doctor</button>
+                    <button onclick="quickLogin('rec_ali', '123')" class="bg-teal-100 text-teal-700 p-2 rounded-lg text-xs font-bold">Reception</button>
+                </div>
+            </div>
+            <div id="branchSelectionForm" class="hidden space-y-4 mt-4">
+                <p class="text-sm text-center font-bold">اختر فرع العمل الحالي:</p>
+                <select id="loginBranchSelect" class="w-full border-2 p-3 rounded-xl outline-none font-bold text-indigo-700"></select>
+                <button onclick="confirmBranchSelection()" class="w-full btn-success p-3 rounded-xl font-bold">استمرار للفرع</button>
+                <button onclick="cancelLogin()" class="w-full bg-gray-100 text-gray-600 p-3 rounded-xl text-sm font-bold">رجوع</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- مساحة الطباعة -->
+    <div id="printArea" class="hidden bg-white p-8 absolute inset-0 z-[9999] min-h-screen"></div>
+
+    <!-- القائمة الجانبية -->
+    <aside id="mainSidebar" class="w-64 bg-slate-900 text-white shadow-2xl flex flex-col transition-all no-print z-10 hidden relative">
+        <div class="p-6 border-b border-slate-700 text-center bg-slate-800">
+            <i class="fas fa-heartbeat text-4xl text-blue-400 mb-2 mt-4"></i><h1 class="text-xl font-extrabold">Cloud Clinic</h1>
+            <div class="mt-4 bg-slate-900 p-3 rounded-lg text-sm text-start shadow-inner border border-slate-700">
+                <p class="text-gray-400 text-xs mb-1">المستخدم:</p><p id="sbUserName" class="font-bold text-blue-300 truncate"></p>
+                <p id="sbClinicNameTxt" class="text-gray-300 text-[11px] mt-1 font-semibold truncate"></p>
+            </div>
+        </div>
+        <nav class="flex-1 p-4 space-y-2 overflow-y-auto custom-scrollbar">
+            <!-- الإدارة العليا ومشرف الفرع -->
+            <div class="auth-item auth-admin auth-branch_supervisor mb-4">
+                <p class="text-[10px] text-gray-500 mb-2 uppercase font-extrabold px-2">الإدارة</p>
+                <button onclick="navigate('dashboard')" id="nav-dashboard" class="w-full flex items-center p-3 rounded-lg text-gray-300 hover:bg-slate-800 transition auth-item auth-admin"><i class="fas fa-chart-pie w-5 text-indigo-400"></i> <span class="mx-3 font-semibold">الإحصائيات العامة</span></button>
+                <button onclick="navigate('adminOrgs')" id="nav-adminOrgs" class="w-full flex items-center p-3 rounded-lg text-gray-300 hover:bg-slate-800 transition auth-item auth-admin"><i class="fas fa-building w-5 text-yellow-400"></i> <span class="mx-3 font-semibold">المؤسسات والفروع</span></button>
+                <button onclick="navigate('adminUsers')" id="nav-adminUsers" class="w-full flex items-center p-3 rounded-lg text-gray-300 hover:bg-slate-800 transition"><i class="fas fa-users-cog w-5 text-pink-400"></i> <span class="mx-3 font-semibold">المستخدمين (Staff)</span></button>
+            </div>
+            
+            <!-- التقارير -->
+            <div class="auth-item auth-admin auth-doctor auth-reception auth-branch_supervisor mb-4">
+                <p class="text-[10px] text-gray-500 mb-2 uppercase font-extrabold px-2">التقارير</p>
+                <button onclick="navigate('reportsView')" id="nav-reportsView" class="w-full flex items-center p-3 rounded-lg text-gray-300 hover:bg-slate-800 transition"><i class="fas fa-chart-line w-5 text-emerald-400"></i> <span class="mx-3 font-semibold">التقارير العامة</span></button>
+            </div>
+
+            <!-- الاستقبال -->
+            <div class="auth-item auth-admin auth-reception mb-4">
+                <p class="text-[10px] text-gray-500 mb-2 uppercase font-extrabold px-2">الاستقبال</p>
+                <button onclick="navigate('bookings')" id="nav-bookings" class="w-full flex items-center p-3 rounded-lg text-gray-300 hover:bg-slate-800 transition"><i class="fas fa-calendar-plus w-5 text-teal-400"></i> <span class="mx-3 font-semibold">التسجيل والحجوزات</span></button>
+            </div>
+            
+            <!-- الطبيب -->
+            <div class="auth-item auth-admin auth-doctor mb-4">
+                <p class="text-[10px] text-gray-500 mb-2 uppercase font-extrabold px-2">الطبيب</p>
+                <button onclick="navigate('doctorHome')" id="nav-doctorHome" class="w-full flex items-center p-3 rounded-lg text-gray-300 hover:bg-slate-800 transition"><i class="fas fa-clipboard-list w-5 text-blue-400"></i> <span class="mx-3 font-semibold">مرضى اليوم</span></button>
+                <button onclick="navigate('diagnosis')" id="nav-diagnosis" class="w-full flex items-center p-3 rounded-lg text-gray-300 hover:bg-slate-800 transition"><i class="fas fa-stethoscope w-5 text-purple-400"></i> <span class="mx-3 font-semibold">التشخيص السريري</span></button>
+                <button onclick="navigate('doctorReviews')" id="nav-doctorReviews" class="w-full flex items-center p-3 rounded-lg text-gray-300 hover:bg-slate-800 transition auth-item auth-doctor"><i class="fas fa-history w-5 text-indigo-400"></i> <span class="mx-3 font-semibold">مراجعة زياراتي</span></button>
+            </div>
+            
+            <button onclick="doLogout()" class="w-full flex items-center p-3 rounded-lg text-red-400 hover:bg-red-900/30 transition mt-auto mb-4 border border-slate-700"><i class="fas fa-sign-out-alt w-5"></i> <span class="mx-3 font-bold">تسجيل الخروج</span></button>
+        </nav>
+    </aside>
+
+    <main id="mainContent" class="flex-1 flex flex-col h-screen overflow-hidden no-print hidden">
+        <div class="flex-1 p-6 overflow-y-auto custom-scrollbar relative z-0">
+            
+            <!-- Dashboard (Admin) -->
+            <section id="dashboard" class="page-content hidden-page">
+                <h2 class="text-3xl font-extrabold text-gray-800 mb-6">الإحصائيات العامة للنظام (SaaS)</h2>
+                <div class="grid grid-cols-4 gap-6 mb-6">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border-r-4 border-blue-500 flex justify-between"><div><p class="text-gray-500 text-sm font-bold">إجمالي المرضى</p><p class="text-3xl font-extrabold text-blue-900" id="statPatients">0</p></div><i class="fas fa-user-injured text-4xl text-blue-100"></i></div>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border-r-4 border-yellow-500 flex justify-between"><div><p class="text-gray-500 text-sm font-bold">المؤسسات (Tenants)</p><p class="text-3xl font-extrabold text-yellow-900" id="statOrgs">0</p></div><i class="fas fa-building text-4xl text-yellow-100"></i></div>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border-r-4 border-green-500 flex justify-between"><div><p class="text-gray-500 text-sm font-bold">العيادات والفروع</p><p class="text-3xl font-extrabold text-green-900" id="statClinics">0</p></div><i class="fas fa-clinic-medical text-4xl text-green-100"></i></div>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border-r-4 border-pink-500 flex justify-between"><div><p class="text-gray-500 text-sm font-bold">إجمالي المستخدمين</p><p class="text-3xl font-extrabold text-pink-900" id="statUsers">0</p></div><i class="fas fa-users text-4xl text-pink-100"></i></div>
+                </div>
+            </section>
+
+            <!-- Admin Orgs (Admin Only) -->
+            <section id="adminOrgs" class="page-content hidden-page">
+                <h2 class="text-3xl font-extrabold text-gray-800 mb-6">إدارة المؤسسات والفروع</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border-t-4 border-yellow-500">
+                        <h3 class="font-bold mb-4 text-gray-700">إضافة مؤسسة / شركة جديدة</h3>
+                        <div class="space-y-3">
+                            <input type="text" id="newOrgName" placeholder="اسم المؤسسة" class="w-full border-2 p-2 rounded-lg outline-none">
+                            <div class="flex gap-2"><div class="w-1/2"><label class="text-xs text-gray-500">بداية الاشتراك</label><input type="date" id="newOrgStart" class="w-full border-2 p-2 rounded-lg outline-none"></div><div class="w-1/2"><label class="text-xs text-gray-500">نهاية الاشتراك</label><input type="date" id="newOrgEnd" class="w-full border-2 p-2 rounded-lg outline-none"></div></div>
+                            <button onclick="addNewOrg()" class="w-full bg-yellow-500 text-white font-bold py-2 rounded-lg shadow hover:bg-yellow-600 transition">إنشاء وحفظ المؤسسة</button>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border-t-4 border-indigo-500">
+                        <h3 class="font-bold mb-4 text-gray-700">إضافة فرع / عيادة جديدة</h3>
+                        <div class="space-y-3">
+                            <select id="newBranchOrg" class="w-full border-2 p-2 rounded-lg outline-none font-bold text-indigo-700"></select>
+                            <input type="text" id="newBranchName" placeholder="اسم الفرع" class="w-full border-2 p-2 rounded-lg outline-none">
+                            <input type="text" id="newBranchSpecs" placeholder="التخصصات (مفصولة بفاصلة)" class="w-full border-2 p-2 rounded-lg outline-none">
+                            <button onclick="addNewBranch()" class="w-full bg-indigo-500 text-white font-bold py-2 rounded-lg shadow hover:bg-indigo-600 transition">إضافة الفرع</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-2xl shadow-sm border overflow-hidden"><table class="w-full text-start"><thead class="bg-slate-50 text-slate-600"><tr class="text-sm border-b"><th class="p-4 text-start font-bold">المؤسسة (Tenant)</th><th class="p-4 text-start font-bold">الصلاحية والاشتراك</th><th class="p-4 text-start font-bold">الفروع</th><th class="p-4 text-center font-bold">الحالة</th><th class="p-4 text-center font-bold">إجراء</th></tr></thead><tbody id="orgsTableBody" class="divide-y divide-gray-100"></tbody></table></div>
+            </section>
+
+            <!-- Admin/Supervisor Users -->
+            <section id="adminUsers" class="page-content hidden-page">
+                <h2 class="text-3xl font-extrabold text-gray-800 mb-6">إدارة المستخدمين والموظفين</h2>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border-t-4 border-pink-500 mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                        <div><label class="block text-xs font-bold mb-1">الاسم الكامل</label><input type="text" id="nuName" class="border-2 p-2 rounded-lg w-full outline-none"></div>
+                        <div><label class="block text-xs font-bold mb-1">اسم الدخول (Username)</label><input type="text" id="nuUser" class="border-2 p-2 rounded-lg w-full outline-none en-font"></div>
+                        <div><label class="block text-xs font-bold mb-1">كلمة المرور</label><input type="text" id="nuPass" class="border-2 p-2 rounded-lg w-full outline-none en-font"></div>
+                        <div><label class="block text-xs font-bold mb-1">الدور (الصلاحية)</label>
+                            <select id="nuRole" class="border-2 p-2 rounded-lg w-full outline-none font-bold">
+                                <option value="doctor">طبيب</option>
+                                <option value="reception">موظف استقبال</option>
+                                <option value="branch_supervisor" class="auth-item auth-admin">مشرف فرع</option>
+                                <option value="admin" class="auth-item auth-admin">مدير نظام كامل</option>
+                            </select>
+                        </div>
+                        <div class="md:col-span-2 auth-item auth-admin"><label class="block text-xs font-bold mb-1 text-pink-700">يتبع لمؤسسة</label><select id="nuOrg" onchange="renderBranchCheckboxes('new')" class="border-2 p-2 rounded-lg w-full outline-none font-bold"><option value="all">الكل (مدير عام)</option></select></div>
+                        <div class="md:col-span-2"><label class="block text-xs font-bold mb-1 text-pink-700">صلاحية الدخول للفروع</label><div id="nuBranchesGrid" class="check-grid bg-slate-50 p-2 border-2 rounded-lg min-h-[44px]"></div></div>
+                        <div class="md:col-span-4"><label class="block text-xs font-bold mb-1">تخصص الطبيب</label><input type="text" id="nuSpecialty" placeholder="مثال: الباطنة" class="border-2 p-2 rounded-lg w-full md:w-1/4 outline-none"></div>
+                    </div>
+                    <button onclick="addNewSystemUser()" class="btn-primary px-8 py-3 rounded-xl font-bold w-full md:w-auto"><i class="fas fa-user-plus mx-2"></i> إنشاء المستخدم</button>
+                </div>
+                <div class="bg-white rounded-2xl shadow-sm border overflow-hidden"><table class="w-full text-start"><thead class="bg-slate-50 text-slate-600"><tr class="text-sm border-b"><th class="p-4 text-start font-bold">المستخدم</th><th class="p-4 text-start font-bold">الدور</th><th class="p-4 text-start font-bold">المؤسسة / الفروع</th><th class="p-4 text-center font-bold">الحالة</th><th class="p-4 text-center font-bold">إجراء</th></tr></thead><tbody id="usersTableBody" class="divide-y divide-gray-100"></tbody></table></div>
+            </section>
+
+            <!-- Reports -->
+            <section id="reportsView" class="page-content hidden-page">
+                <h2 class="text-3xl font-extrabold text-gray-800 mb-6">التقارير الشاملة</h2>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border-t-4 border-emerald-500 mb-6 flex flex-wrap gap-4 items-end">
+                    <div class="w-full md:w-1/4"><label class="block text-xs font-bold mb-1">من تاريخ</label><input type="date" id="repStartDate" class="w-full border-2 p-2 rounded-lg font-bold outline-none"></div>
+                    <div class="w-full md:w-1/4"><label class="block text-xs font-bold mb-1">إلى تاريخ</label><input type="date" id="repEndDate" class="w-full border-2 p-2 rounded-lg font-bold outline-none"></div>
+                    <div class="w-full md:w-auto"><button onclick="generateReports()" class="btn-success px-8 py-2.5 rounded-lg font-bold w-full md:w-auto"><i class="fas fa-filter mx-2"></i> استخراج التقرير</button></div>
+                    <div class="w-full md:w-auto"><button onclick="window.print()" class="bg-gray-800 text-white px-6 py-2.5 rounded-lg font-bold w-full md:w-auto hover:bg-gray-900"><i class="fas fa-print mx-2"></i> طباعة</button></div>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-emerald-100"><p class="text-gray-500 text-sm font-bold mb-1">إجمالي الإيرادات (المحصلة)</p><p class="text-3xl font-extrabold text-emerald-600 en-font" id="repTotalRev">0 <span class="text-sm">EGP</span></p></div>
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-blue-100"><p class="text-gray-500 text-sm font-bold mb-1">الحالات المكتملة</p><p class="text-3xl font-extrabold text-blue-600 en-font" id="repTotalDone">0</p></div>
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-yellow-100"><p class="text-gray-500 text-sm font-bold mb-1">قيد الانتظار</p><p class="text-3xl font-extrabold text-yellow-600 en-font" id="repTotalWait">0</p></div>
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-red-100"><p class="text-gray-500 text-sm font-bold mb-1">ملغاة</p><p class="text-3xl font-extrabold text-red-600 en-font" id="repTotalCancel">0</p></div>
+                </div>
+                <div class="bg-white rounded-2xl shadow-sm border overflow-hidden"><table class="w-full text-start"><thead class="bg-white text-slate-600"><tr class="text-sm border-b"><th class="p-4 text-start font-bold">التاريخ والوقت</th><th class="p-4 text-start font-bold">المريض</th><th class="p-4 text-start font-bold">الخدمة</th><th class="p-4 text-start font-bold">المبلغ</th><th class="p-4 text-start font-bold">الحالة</th></tr></thead><tbody id="reportsTableBody" class="divide-y divide-gray-100"></tbody></table></div>
+            </section>
+
+            <!-- Bookings -->
+            <section id="bookings" class="page-content hidden-page">
+                <h2 class="text-2xl font-extrabold text-gray-800 mb-6">الاستقبال - الحجوزات والفوترة</h2>
+                <div class="bg-white p-6 rounded-2xl shadow-sm mb-6 border-t-4 border-teal-500">
+                    <div class="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4">
+                        <div class="md:col-span-2"><label class="block text-xs font-bold mb-1">اسم المريض *</label><input type="text" id="bName" class="border-2 p-2 rounded-lg w-full outline-none"></div>
+                        <div><label class="block text-xs font-bold mb-1">الهاتف *</label><input type="tel" id="bPhone" class="border-2 p-2 rounded-lg w-full outline-none"></div>
+                        <div><label class="block text-xs font-bold mb-1">تاريخ الميلاد *</label><input type="date" id="bDob" class="border-2 p-2 rounded-lg w-full outline-none"></div>
+                        <div class="md:col-span-2"><label class="block text-xs font-bold mb-1">الرقم القومي</label><input type="text" id="bNationalId" maxlength="14" class="border-2 p-2 rounded-lg w-full en-font outline-none"></div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4 bg-slate-50 p-4 rounded-xl border">
+                        <div><label class="block text-xs font-bold mb-1 text-teal-700">الفرع *</label><select id="bClinicSelect" onchange="updateBookingSpecs()" class="border-2 border-teal-300 bg-white p-2 rounded-lg w-full font-bold outline-none"></select></div>
+                        <div><label class="block text-xs font-bold mb-1 text-teal-700">التخصص *</label><select id="bSpecialtySelect" onchange="updateBookingDoctors()" class="border-2 border-teal-300 bg-white p-2 rounded-lg w-full font-bold text-indigo-700 outline-none"></select></div>
+                        <div class="col-span-2"><label class="block text-xs font-bold mb-1 text-teal-700">الطبيب المعالج *</label><select id="bDoctorSelect" class="border-2 border-indigo-300 p-2 rounded-lg w-full font-bold text-indigo-900 outline-none bg-white"></select></div>
+                        <div><label class="block text-xs font-bold mb-1 text-teal-700">الخدمة *</label><select id="bServiceSelect" class="border-2 border-teal-300 bg-white p-2 rounded-lg w-full font-bold text-green-700 outline-none"><option value="300">كشف (300 ج)</option><option value="0">متابعة (مجاني)</option></select></div>
+                        <div class="col-span-2"><label class="block text-xs font-bold mb-1 text-teal-700">تاريخ الموعد *</label><input type="date" id="bDate" class="border-2 border-teal-300 bg-white p-2 rounded-lg w-full font-bold outline-none"></div>
+                        <div><label class="block text-xs font-bold mb-1 text-teal-700">الوقت *</label><input type="time" id="bTime" class="border-2 border-teal-300 bg-white p-2 rounded-lg w-full font-bold outline-none"></div>
+                    </div>
+                    <button onclick="registerPatient()" class="btn-primary px-8 py-3 rounded-xl font-bold">تأكيد وحفظ الموعد</button>
+                </div>
+                <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+                    <div class="bg-slate-50 p-4 border-b flex justify-between items-center"><h3 class="font-bold text-gray-700"><i class="fas fa-list mx-2"></i>جدول المواعيد:</h3><input type="date" id="viewDateFilter" onchange="renderBookingsTable()" class="border-2 p-1.5 rounded-lg text-sm font-bold outline-none"></div>
+                    <table class="w-full text-start"><thead class="bg-white text-slate-600"><tr class="text-sm border-b"><th class="p-4 text-start font-bold">الوقت</th><th class="p-4 text-start font-bold">الاسم</th><th class="p-4 text-start font-bold">الطبيب/التخصص</th><th class="p-4 text-start font-bold">الحالة</th><th class="p-4 text-center font-bold">إجراءات</th></tr></thead><tbody id="todayBookingsBody" class="divide-y divide-gray-100"></tbody></table>
+                </div>
+            </section>
+
+            <!-- Doctor Home -->
+            <section id="doctorHome" class="page-content hidden-page">
+                <div class="flex justify-between items-center mb-6"><div class="flex items-center gap-4"><h2 class="text-2xl font-extrabold text-gray-800">إدارة العيادة لليوم</h2><select id="docAppStatusFilter" onchange="renderDoctorBookings()" class="border-2 border-indigo-300 text-indigo-700 p-1.5 rounded-lg font-bold outline-none bg-white"><option value="waiting">قيد الانتظار (تم الدفع)</option><option value="completed">تم الكشف</option></select></div><div class="bg-indigo-100 text-indigo-800 px-4 py-2 rounded-lg font-bold shadow-sm text-sm"><span id="doctorTodayDateTxt" class="en-font"></span></div></div>
+                <div class="bg-white rounded-2xl shadow-sm border overflow-hidden"><table class="w-full text-start"><thead class="bg-slate-50 text-slate-600"><tr class="text-sm border-b"><th class="p-4 text-start font-bold">الوقت</th><th class="p-4 text-start font-bold">اسم المريض</th><th class="p-4 text-start font-bold">نوع الخدمة</th><th class="p-4 text-center font-bold">الإجراء</th></tr></thead><tbody id="doctorBookingsBody" class="divide-y divide-gray-50"></tbody></table></div>
+            </section>
+
+            <!-- Doctor Reviews (Read-Only) -->
+            <section id="doctorReviews" class="page-content hidden-page">
+                <h2 class="text-3xl font-extrabold text-gray-800 mb-6">مراجعة زياراتي (جميع الفروع)</h2>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border mb-6 flex gap-4">
+                    <input type="date" id="revDateFrom" class="border-2 p-2 rounded-lg font-bold">
+                    <input type="date" id="revDateTo" class="border-2 p-2 rounded-lg font-bold">
+                    <button onclick="renderDoctorReviews()" class="btn-primary px-6 py-2 rounded-lg font-bold">بحث</button>
+                </div>
+                <div class="bg-white rounded-2xl shadow-sm border overflow-hidden"><table class="w-full text-start"><thead class="bg-slate-50 text-slate-600"><tr class="text-sm border-b"><th class="p-4 text-start font-bold">التاريخ</th><th class="p-4 text-start font-bold">الفرع</th><th class="p-4 text-start font-bold">المريض</th><th class="p-4 text-start font-bold">التشخيص المبدئي</th></tr></thead><tbody id="doctorReviewsBody" class="divide-y divide-gray-50"></tbody></table></div>
+            </section>
+
+            <!-- Diagnosis Workspace (EMR Tabs) -->
+            <section id="diagnosis" class="page-content hidden-page">
+                <div id="noPatientAlertDiagnosis" class="bg-yellow-50 border-r-4 border-yellow-400 text-yellow-800 p-5 mb-6 rounded-xl flex items-center"><i class="fas fa-info-circle text-3xl mx-3"></i><div><p class="font-extrabold text-lg">تنبيه:</p><p class="text-sm font-bold">يرجى العودة لقائمة الانتظار لبدء فحص مريض.</p></div></div>
+                
+                <div id="diagnosisWorkspace" class="hidden">
+                    <!-- Patient Header -->
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border-t-4 border-indigo-600 mb-4 flex justify-between items-center">
+                        <div class="flex items-center gap-4">
+                            <div class="bg-indigo-100 p-3 rounded-full"><i class="fas fa-user-injured text-2xl text-indigo-700"></i></div>
+                            <div>
+                                <h3 class="text-xl font-extrabold text-gray-800" id="headerPatientName">اسم المريض</h3>
+                                <p class="text-sm text-gray-500 font-bold">
+                                    <span id="headerPatientId" class="en-font">PT-000</span> | 
+                                    العمر: <span id="headerPatientAge" class="en-font">0</span> سنة | 
+                                    الهاتف: <span id="headerPatientPhone" class="en-font">000</span>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="text-end hidden md:block text-sm font-bold text-gray-600">
+                            <p><i class="fas fa-clinic-medical mx-1 text-indigo-400"></i> <span id="headerClinicName">الفرع</span></p>
+                            <p><i class="fas fa-user-md mx-1 text-blue-400"></i> د. <span id="headerDoctorName">الطبيب</span> (<span id="headerSpecialty">التخصص</span>)</p>
+                        </div>
+                    </div>
+
+                    <!-- EMR Tabs Navigation -->
+                    <div class="flex border-b border-gray-200 mb-6 bg-white rounded-t-xl overflow-x-auto custom-scrollbar">
+                        <button onclick="switchEmrTab('tab-vitals')" id="btn-tab-vitals" class="emr-tab-btn flex-1 py-3 px-4 text-center font-bold text-sm border-b-4 border-indigo-600 text-indigo-700 bg-indigo-50 transition whitespace-nowrap"><i class="fas fa-heartbeat mx-1"></i> العلامات الحيوية</button>
+                        <button onclick="switchEmrTab('tab-exam')" id="btn-tab-exam" class="emr-tab-btn flex-1 py-3 px-4 text-center font-bold text-sm border-b-4 border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition whitespace-nowrap"><i class="fas fa-stethoscope mx-1"></i> الفحص الإكلينيكي</button>
+                        <button onclick="switchEmrTab('tab-diagnosis')" id="btn-tab-diagnosis" class="emr-tab-btn flex-1 py-3 px-4 text-center font-bold text-sm border-b-4 border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition whitespace-nowrap"><i class="fas fa-file-medical-alt mx-1"></i> التشخيص</button>
+                        <button onclick="switchEmrTab('tab-rx')" id="btn-tab-rx" class="emr-tab-btn flex-1 py-3 px-4 text-center font-bold text-sm border-b-4 border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition whitespace-nowrap"><i class="fas fa-capsules mx-1"></i> الروشتة</button>
+                        <button onclick="switchEmrTab('tab-labs')" id="btn-tab-labs" class="emr-tab-btn flex-1 py-3 px-4 text-center font-bold text-sm border-b-4 border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition whitespace-nowrap"><i class="fas fa-vial mx-1"></i> التحاليل</button>
+                        <button onclick="switchEmrTab('tab-rad')" id="btn-tab-rad" class="emr-tab-btn flex-1 py-3 px-4 text-center font-bold text-sm border-b-4 border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition whitespace-nowrap"><i class="fas fa-x-ray mx-1"></i> الأشعة</button>
+                        <button onclick="switchEmrTab('tab-history')" id="btn-tab-history" class="emr-tab-btn flex-1 py-3 px-4 text-center font-bold text-sm border-b-4 border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition whitespace-nowrap"><i class="fas fa-history mx-1"></i> السجل الطبي</button>
+                    </div>
+
+                    <!-- Tabs Content Container -->
+                    <div class="bg-white p-6 rounded-b-xl shadow-sm border border-t-0 min-h-[400px]">
+                        
+                        <!-- Tab 1: Vitals -->
+                        <div id="tab-vitals" class="emr-tab-content">
+                            <h3 class="text-lg font-bold mb-4 text-gray-700 border-b pb-2">تسجيل العلامات الحيوية (Vital Signs)</h3>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div><label class="block text-xs font-bold mb-1">الوزن (KG)</label><input type="number" id="vitalWeight" class="w-full border-2 p-2 rounded-lg outline-none" oninput="calculateBMI()"></div>
+                                <div><label class="block text-xs font-bold mb-1">الطول (CM)</label><input type="number" id="vitalHeight" class="w-full border-2 p-2 rounded-lg outline-none" oninput="calculateBMI()"></div>
+                                <div><label class="block text-xs font-bold mb-1">BMI</label><input type="text" id="vitalBMI" readonly class="w-full border-2 bg-gray-100 p-2 rounded-lg outline-none font-bold text-indigo-700 en-font"></div>
+                                <div><label class="block text-xs font-bold mb-1">ضغط الدم</label><input type="text" id="vitalBP" placeholder="120/80" class="w-full border-2 p-2 rounded-lg outline-none en-font" dir="ltr"></div>
+                                <div><label class="block text-xs font-bold mb-1">سكر الدم (mg/dL)</label><input type="number" id="vitalSugar" class="w-full border-2 p-2 rounded-lg outline-none"></div>
+                                <div><label class="block text-xs font-bold mb-1">النبض (bpm)</label><input type="number" id="vitalPulse" class="w-full border-2 p-2 rounded-lg outline-none"></div>
+                                <div><label class="block text-xs font-bold mb-1">الحرارة (°C)</label><input type="number" step="0.1" id="vitalTemp" class="w-full border-2 p-2 rounded-lg outline-none"></div>
+                                <div><label class="block text-xs font-bold mb-1">SpO2 (%)</label><input type="number" id="vitalSpO2" class="w-full border-2 p-2 rounded-lg outline-none"></div>
+                            </div>
+                        </div>
+
+                        <!-- Tab 2: Clinical Exam -->
+                        <div id="tab-exam" class="emr-tab-content hidden">
+                            <h3 class="text-lg font-bold mb-4 text-gray-700 border-b pb-2">الفحص الإكلينيكي (Clinical Examination)</h3>
+                            <div class="space-y-4">
+                                <div><label class="block text-xs font-bold mb-1">Chief Complaint</label><input type="text" id="examComplaint" class="w-full border-2 p-2 rounded-lg outline-none"></div>
+                                <div><label class="block text-xs font-bold mb-1">General & Specialty Examination Notes</label><textarea id="examNotes" rows="5" placeholder="ملاحظات الفحص..." class="w-full border-2 p-3 rounded-xl text-sm outline-none focus:border-indigo-500"></textarea></div>
+                            </div>
+                        </div>
+
+                        <!-- Tab 3: Diagnosis -->
+                        <div id="tab-diagnosis" class="emr-tab-content hidden">
+                            <h3 class="text-lg font-bold mb-4 text-gray-700 border-b pb-2">التشخيص (Diagnosis)</h3>
+                            <textarea id="detailedDiagnosis" rows="4" placeholder="التشخيص النهائي..." class="w-full border-2 p-3 rounded-xl text-sm mb-4 outline-none focus:border-indigo-500"></textarea>
+                        </div>
+
+                        <!-- Tab 4: Prescription -->
+                        <div id="tab-rx" class="emr-tab-content hidden">
+                             <div class="bg-slate-50 p-4 rounded-xl border mb-4">
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                                    <div class="md:col-span-2"><label class="block text-xs font-bold mb-1">اسم الدواء</label><input type="text" id="drugName" class="border-2 p-2 rounded-lg w-full en-font outline-none"></div>
+                                    <div><label class="block text-xs font-bold mb-1">الجرعة</label><input type="text" id="drugDose" placeholder="قرص كل 12 ساعة" class="border-2 p-2 rounded-lg w-full outline-none text-sm font-bold"></div>
+                                    <div><label class="block text-xs font-bold mb-1">المدة</label><input type="text" id="drugDur" placeholder="5 أيام" class="border-2 p-2 rounded-lg w-full outline-none text-sm font-bold"></div>
+                                </div>
+                                <button onclick="addPrescriptionItem()" class="mt-3 bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-bold shadow hover:bg-blue-700">إضافة للروشتة</button>
+                            </div>
+                            <div id="currentPrescriptionList" class="space-y-2 mb-5"></div>
+                        </div>
+
+                        <!-- Tab 5: Labs -->
+                        <div id="tab-labs" class="emr-tab-content hidden">
+                            <h3 class="text-lg font-bold mb-4 text-gray-700 border-b pb-2">طلب تحاليل طبية</h3>
+                            <div class="bg-slate-50 p-4 rounded-xl border mb-4">
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                                    <div>
+                                        <label class="block text-xs font-bold mb-1">تحليل جاهز</label>
+                                        <select id="labReqPredefined" class="w-full border-2 p-2 rounded-lg outline-none font-bold en-font" dir="ltr" onchange="if(this.value && this.value !== 'Other') document.getElementById('labReqName').value = this.value;">
+                                            <option value="">اختر من القائمة...</option>
+                                            <option value="CBC">CBC (Complete Blood Count)</option>
+                                            <option value="Fasting Blood Glucose">Fasting Blood Glucose</option>
+                                            <option value="HbA1c">HbA1c</option>
+                                            <option value="Lipid Profile">Lipid Profile</option>
+                                            <option value="Liver Function Test (LFT)">Liver Function Test (LFT)</option>
+                                            <option value="Kidney Function Test (KFT)">Kidney Function Test (KFT)</option>
+                                            <option value="Urinalysis">Urinalysis</option>
+                                            <option value="Other">تحليل آخر</option>
+                                        </select>
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <label class="block text-xs font-bold mb-1">اسم التحليل</label>
+                                        <div class="flex gap-2">
+                                            <input type="text" id="labReqName" placeholder="أو اكتب اسم التحليل هنا..." class="w-full border-2 p-2 rounded-lg outline-none en-font" dir="ltr">
+                                            <button onclick="addLabRequest()" class="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold shadow hover:bg-indigo-700 whitespace-nowrap">إضافة</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="labRequestsList" class="space-y-2"></div>
+                        </div>
+                        
+                        <!-- Tab 6: Radiology -->
+                        <div id="tab-rad" class="emr-tab-content hidden">
+                            <h3 class="text-lg font-bold mb-4 text-gray-700 border-b pb-2">طلب أشعة</h3>
+                            <div class="bg-slate-50 p-4 rounded-xl border mb-4">
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                                    <div>
+                                        <label class="block text-xs font-bold mb-1">نوع الأشعة</label>
+                                        <select id="radReqType" class="w-full border-2 p-2 rounded-lg outline-none font-bold en-font" dir="ltr">
+                                            <option value="X-Ray">X-Ray</option>
+                                            <option value="Ultrasound">Ultrasound</option>
+                                            <option value="CT">CT Scan</option>
+                                            <option value="MRI">MRI</option>
+                                            <option value="ECG">ECG</option>
+                                            <option value="Echo">Echo</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                    </div>
+                                    <div><label class="block text-xs font-bold mb-1">المنطقة (Area)</label><input type="text" id="radReqArea" placeholder="مثال: Chest" class="w-full border-2 p-2 rounded-lg outline-none en-font" dir="ltr"></div>
+                                    <div class="md:col-span-2"><label class="block text-xs font-bold mb-1">دواعي الفحص (Indication)</label><input type="text" id="radReqIndication" class="w-full border-2 p-2 rounded-lg outline-none"></div>
+                                    <div class="md:col-span-4 flex gap-2">
+                                        <input type="text" id="radReqNotes" placeholder="ملاحظات إضافية (Notes)..." class="w-full border-2 p-2 rounded-lg outline-none">
+                                        <button onclick="addRadRequest()" class="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold shadow hover:bg-indigo-700 whitespace-nowrap">إضافة الطلب</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="radRequestsList" class="space-y-2"></div>
+                        </div>
+
+                        <!-- Tab 7: History -->
+                        <div id="tab-history" class="emr-tab-content hidden">
+                            <h3 class="text-lg font-bold mb-4 text-gray-700 border-b pb-2">تاريخ الزيارات السابقة والنتائج</h3>
+                            <div id="medicalHistoryPanel" class="space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar pr-2"></div>
+                        </div>
+                        
+                    </div>
+                    
+                    <!-- Unified Save Button -->
+                    <div class="mt-6 flex justify-end">
+                        <button onclick="endAndSaveMedicalEncounter()" class="bg-gradient-to-r from-emerald-500 to-green-600 text-white px-8 py-3 rounded-xl font-extrabold shadow-lg hover:-translate-y-1 transition text-lg"><i class="fas fa-check-double mx-2"></i> إنهاء الزيارة وحفظ السجل الطبي (EMR)</button>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- App Logic -->
+    <script>{
+        // Helpers
+        function escapeHTML(str) { if(str===null||str===undefined) return ''; return String(str).replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)); }
+        function generateId() { return Date.now() + Math.floor(Math.random()*1000); }
+        function getLocalISODate() { const d = new Date(); return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0]; }
+        function calculateAge(dob) { if(!dob) return 0; const diff = Date.now() - new Date(dob).getTime(); return Math.abs(new Date(diff).getUTCFullYear() - 1970); }
+
+        // =========================================================
+        // 1. Supabase Initialization
+        // =========================================================
+        document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"><\/script>');
+
+        // ⚠️ ضع الرابط والمفتاح الخاصين بك هنا من Supabase
+        const SUPABASE_URL = 'https://nwnaiicqyuzkobertywz.supabase.co/rest/v1/';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im53bmFpaWNxeXV6a29iZXJ0eXd6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0MzEyOTgsImV4cCI6MjEwMzAwNzI5OH0.aQPn3gWXLg6Jaq1jk8sJhYTX7GpqWHTTDLFdZOXiJYs';
+
+        let supabase;
+
+        // State Variables
+        let orgsDB = [];
+        let clinicsDB = [];
+        let usersDB = [];
+        let patients = [];
+        let auditLog = [];
+
+        window.onload = async () => {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            
+            const loginBtn = document.querySelector('#loginForm button');
+            const originalBtnText = loginBtn.innerText;
+            loginBtn.innerText = "جاري الاتصال بقاعدة البيانات...";
+            loginBtn.disabled = true;
+
+            try {
+                const [orgsRes, clinicsRes, usersRes, patientsRes, auditRes] = await Promise.all([
+                    supabase.from('organizations').select('*'),
+                    supabase.from('clinics').select('*'),
+                    supabase.from('system_users').select('*'),
+                    supabase.from('patients').select('*'),
+                    supabase.from('audit_logs').select('*')
+                ]);
+
+                if (orgsRes.error) throw orgsRes.error;
+
+                orgsDB = orgsRes.data || [];
+                clinicsDB = clinicsRes.data || [];
+                usersDB = usersRes.data || [];
+                patients = patientsRes.data || [];
+                auditLog = auditRes.data || [];
+
+                // إنشاء مستخدم أدمن افتراضي إذا كانت قاعدة البيانات جديدة تماماً
+                if (usersDB.length === 0) {
+                    const defaultAdmin = { 
+                        id: 'U-00', username: 'admin', pass: '123', name: 'مدير النظام', 
+                        role: 'admin', orgId: 'all', clinics: ['all'], status: 'active' 
+                    };
+                    await supabase.from('system_users').insert([defaultAdmin]);
+                    usersDB.push(defaultAdmin);
+                }
+
+                loginBtn.innerText = originalBtnText;
+                loginBtn.disabled = false;
+                console.log("✅ تم الاتصال بـ Supabase وتحميل البيانات بنجاح");
+
+            } catch (error) {
+                console.error("❌ خطأ في الاتصال بـ Supabase:", error);
+                alert("فشل الاتصال بقاعدة البيانات. يرجى التأكد من إيقاف الـ RLS في Supabase وإدخال المفاتيح الصحيحة.");
+            }
+        };
+
+        // =========================================================
+        // 2. تحديث دالة saveDB لترفع البيانات للسحابة
+        // =========================================================
+        async function saveDB() {
+            try {
+                if (orgsDB.length > 0) await supabase.from('organizations').upsert(orgsDB);
+                if (clinicsDB.length > 0) await supabase.from('clinics').upsert(clinicsDB);
+                if (usersDB.length > 0) await supabase.from('system_users').upsert(usersDB);
+                if (patients.length > 0) await supabase.from('patients').upsert(patients);
+                if (auditLog.length > 0) await supabase.from('audit_logs').upsert(auditLog);
+            } catch (error) {
+                console.error("خطأ أثناء مزامنة البيانات مع الخادم:", error);
+            }
+        
+        // Globals
+        let currentUser = null; let currentSessionClinicId = null; 
+        let currentActivePatient = null; let currentActiveAppId = null; 
+        let tempPrescription = []; let tempLabReqs = []; let tempRadReqs = [];
+
+        // =========================================================
+        // Security, Permissions & Audit Layer
+        // =========================================================
+        function logAudit(action, targetId, details = '') {
+            if(!currentUser) return;
+            auditLog.push({ id: generateId(), timestamp: new Date().toISOString(), userId: currentUser.id, userName: currentUser.name, userRole: currentUser.role, action: action, target: targetId, details: details });
+            saveDB();
+        }
+
+        function hasPermission(allowedRoles, requiredOrgId = null, requiredClinicId = null) {
+            if (!currentUser) return false;
+            if (currentUser.role === 'admin') return true;
+            if (!allowedRoles.includes(currentUser.role)) return false;
+            if (requiredOrgId && requiredOrgId !== 'all' && currentUser.orgId !== requiredOrgId) return false;
+            if (requiredClinicId && requiredClinicId !== 'all' && !currentUser.clinics.includes(requiredClinicId)) return false;
+            return true;
+        }
+
+        // =========================================================
+        // Auth / Login
+        // =========================================================
+        function quickLogin(u, p) { document.getElementById('loginUsername').value = u; document.getElementById('loginPassword').value = p; handleLogin(); }
+
+        function handleLogin() {
+            const u = document.getElementById('loginUsername').value.trim(); const p = document.getElementById('loginPassword').value.trim();
+            const err = document.getElementById('loginError'); if(!u || !p) { err.innerText="أدخل بيانات الدخول"; err.classList.remove('hidden'); return; }
+            const user = usersDB.find(x => x.username === u && x.pass === p);
+            
+            if(user) {
+                if(user.status === 'suspended') { err.innerText="عفواً، تم إيقاف حسابك."; err.classList.remove('hidden'); return; }
+                if(user.role !== 'admin' && user.orgId && user.orgId !== 'all') {
+                    const myOrg = orgsDB.find(o => o.id === user.orgId);
+                    if(!myOrg || myOrg.status === 'suspended') { err.innerText="مؤسستك موقوفة!"; err.classList.remove('hidden'); return; }
+                    if(myOrg.subEnd < getLocalISODate()) { err.innerText="انتهى اشتراك مؤسستك!"; err.classList.remove('hidden'); return; }
+                }
+
+                err.classList.add('hidden'); currentUser = user;
+                if(user.role === 'admin' || user.clinics.length === 1) { 
+                    currentSessionClinicId = user.role === 'admin' ? 'all' : user.clinics[0]; 
+                    completeLogin(); 
+                } else {
+                    document.getElementById('loginForm').style.display = 'none'; document.getElementById('qaQuickLogin').style.display = 'none';
+                    const sel = document.getElementById('loginBranchSelect'); sel.innerHTML = '';
+                    user.clinics.forEach(cId => { let c = clinicsDB.find(x=>x.id===cId); if(c && c.status==='active') sel.innerHTML += `<option value="${c.id}">${escapeHTML(c.name)}</option>`; });
+                    document.getElementById('branchSelectionForm').classList.remove('hidden');
+                }
+            } else { err.innerText="البيانات غير صحيحة"; err.classList.remove('hidden'); }
+        }
+
+        function confirmBranchSelection() { currentSessionClinicId = document.getElementById('loginBranchSelect').value; completeLogin(); }
+        function cancelLogin() { currentUser = null; document.getElementById('branchSelectionForm').classList.add('hidden'); document.getElementById('loginForm').style.display = 'block'; document.getElementById('qaQuickLogin').style.display = 'block'; }
+        
+        function completeLogin() {
+            document.getElementById('loginScreen').style.display = 'none'; document.getElementById('mainSidebar').classList.remove('hidden'); document.getElementById('mainContent').classList.remove('hidden');
+            let orgName = 'الإدارة المركزية'; if(currentUser.orgId !== 'all') orgName = (orgsDB.find(o => o.id === currentUser.orgId)||{}).name || orgName;
+            document.getElementById('sbUserName').innerText = currentUser.name; 
+            document.getElementById('sbClinicNameTxt').innerText = orgName + ' | ' + ((clinicsDB.find(c=>c.id===currentSessionClinicId)||{}).name || 'الكل');
+            
+            document.querySelectorAll('.auth-item').forEach(el => el.style.display = 'none'); 
+            document.querySelectorAll('.auth-' + currentUser.role).forEach(el => el.style.display = 'block');
+            
+            const today = getLocalISODate();
+            const docToday = document.getElementById('doctorTodayDateTxt'); if(docToday) docToday.innerText = today;
+            const bDateRec = document.getElementById('bDate'); if(bDateRec) { bDateRec.min = today; bDateRec.value = today; }
+            const vDate = document.getElementById('viewDateFilter'); if(vDate) vDate.value = today;
+            document.getElementById('repStartDate').value = today; document.getElementById('repEndDate').value = today;
+
+            if(currentUser.role === 'admin') { 
+                navigate('dashboard'); 
+                document.getElementById('statPatients').innerText = patients.length; 
+                document.getElementById('statOrgs').innerText = orgsDB.length;
+                document.getElementById('statClinics').innerText = clinicsDB.length;
+                document.getElementById('statUsers').innerText = usersDB.length;
+                renderAdminOrgs(); renderAdminUsers();
+            } 
+            else if(currentUser.role === 'branch_supervisor') { renderAdminUsers(); navigate('adminUsers'); }
+            else if(currentUser.role === 'reception') { populateBookingClinics(); renderBookingsTable(); navigate('bookings'); } 
+            else if(currentUser.role === 'doctor') { renderDoctorBookings(); navigate('doctorHome'); }
+        }
+        function doLogout() { location.reload(); }
+
+        const pageRoles = { 'dashboard': ['admin'], 'adminOrgs': ['admin'], 'adminUsers': ['admin','branch_supervisor'], 'reportsView': ['admin','doctor','reception','branch_supervisor'], 'bookings': ['admin', 'reception'], 'doctorHome': ['admin', 'doctor'], 'diagnosis': ['admin', 'doctor'], 'doctorReviews': ['doctor'] };
+        function navigate(pageId) {
+            if(currentUser && pageRoles[pageId] && !pageRoles[pageId].includes(currentUser.role)) return alert("محظور: ليس لديك صلاحية الوصول.");
+            if(pageId === 'doctorHome') renderDoctorBookings();
+            if(pageId === 'reportsView') generateReports();
+            document.querySelectorAll('.page-content').forEach(el => el.classList.add('hidden-page')); document.getElementById(pageId).classList.remove('hidden-page');
+            document.querySelectorAll('nav button').forEach(el => el.classList.remove('nav-active', 'text-white')); let btn = document.getElementById('nav-' + pageId); if(btn) btn.classList.add('nav-active', 'text-white');
+        }
+
+        // =========================================================
+        // Admin: المؤسسات والفروع (CRUD & Soft Delete)
+        // =========================================================
+        function addNewOrg() {
+            if (!hasPermission(['admin'])) return alert("غير مصرح");
+            const name = document.getElementById('newOrgName').value; const start = document.getElementById('newOrgStart').value; const end = document.getElementById('newOrgEnd').value;
+            if(!name || !start || !end) return alert("أكمل بيانات المؤسسة");
+            let id = 'ORG-' + generateId(); orgsDB.push({ id, name, subStart: start, subEnd: end, status: 'active' }); logAudit('Create Org', id); saveDB(); renderAdminOrgs(); document.getElementById('newOrgName').value = ''; alert("تمت الإضافة");
+        }
+        function addNewBranch() {
+            if (!hasPermission(['admin'])) return alert("غير مصرح");
+            const orgId = document.getElementById('newBranchOrg').value; const name = document.getElementById('newBranchName').value; const specsStr = document.getElementById('newBranchSpecs').value;
+            if(!orgId || !name || !specsStr) return alert("أكمل بيانات الفرع");
+            let id = 'C-' + generateId(); clinicsDB.push({ id, orgId, name, specialties: specsStr.split(',').map(s=>s.trim()), status: 'active' }); logAudit('Create Branch', id); saveDB(); renderAdminOrgs(); document.getElementById('newBranchName').value = ''; alert("تم الإضافة");
+        }
+        function toggleBranchStatus(branchId, action) {
+            if (!hasPermission(['admin'])) return alert("غير مصرح");
+            const branch = clinicsDB.find(c => c.id === branchId); if (!branch) return;
+            const hasLinkedData = usersDB.some(u => u.clinics.includes(branchId)) || patients.some(p => p.appointments.some(a => a.clinicId === branchId) || (p.visits && p.visits.some(v => v.clinicId === branchId)));
+            if (action === 'delete') {
+                if (hasLinkedData) { branch.status = 'archived'; alert("تم أرشفة الفرع (Soft Delete) لوجود بيانات مرتبطة به."); } 
+                else { clinicsDB = clinicsDB.filter(c => c.id !== branchId); alert("تم حذف الفرع نهائياً."); }
+            } else if (action === 'reactivate') { branch.status = 'active'; alert("تم إعادة تفعيل الفرع."); }
+            logAudit('Branch Status Toggle', branchId, action); saveDB(); renderAdminOrgs();
+        }
+        
+        function renderAdminOrgs() {
+            const selOrg = document.getElementById('newBranchOrg'); selOrg.innerHTML = '<option value="">اختر المؤسسة...</option>';
+            const selUserOrg = document.getElementById('nuOrg'); selUserOrg.innerHTML = '<option value="all">الكل (مدير عام)</option>';
+            const tbody = document.getElementById('orgsTableBody'); tbody.innerHTML = '';
+            orgsDB.forEach(org => {
+                selOrg.innerHTML += `<option value="${org.id}">${org.name}</option>`; selUserOrg.innerHTML += `<option value="${org.id}">${org.name}</option>`;
+                let branches = clinicsDB.filter(c => c.orgId === org.id);
+                let branchesHtml = branches.map(b => `<span class="bg-indigo-100 text-indigo-800 text-[10px] px-2 py-1 rounded m-0.5 inline-block">${b.name} ${b.status!=='active'?'(موقوف)':''}</span> <button onclick="toggleBranchStatus('${b.id}', '${b.status==='active'?'delete':'reactivate'}')" class="text-[10px] text-red-500 hover:text-red-700 ml-2"><i class="fas ${b.status==='active'?'fa-trash':'fa-undo'}"></i></button><br>`).join('') || '<span class="text-gray-400 text-xs">لا يوجد فروع</span>';
+                const statusBadge = org.status === 'suspended' ? `<span class="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold border border-red-200">موقوف</span>` : (org.subEnd < getLocalISODate() ? `<span class="bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs font-bold border border-orange-200">منتهي الاشتراك</span>` : `<span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold border border-green-200">نشط</span>`);
+                tbody.innerHTML += `<tr class="hover:bg-slate-50 border-b"><td class="p-4 font-extrabold text-indigo-900">${escapeHTML(org.name)}</td><td class="p-4 text-xs font-bold en-font" dir="ltr"><span class="text-gray-400">St:</span> ${org.subStart} <br> <span class="text-gray-400">En:</span> <span class="${org.subEnd < getLocalISODate() ? 'text-red-500' : ''}">${org.subEnd}</span></td><td class="p-4">${branchesHtml}</td><td class="p-4 text-center">${statusBadge}</td><td class="p-4 text-center"><button onclick="openEditOrg('${org.id}')" class="bg-yellow-500 text-white px-3 py-1 rounded text-xs shadow hover:bg-yellow-600 font-bold"><i class="fas fa-edit"></i> تعديل</button></td></tr>`;
+            });
+        }
+        function openEditOrg(id) { const org = orgsDB.find(o => o.id === id); if(!org) return; document.getElementById('editOrgId').value = org.id; document.getElementById('editOrgName').value = org.name; document.getElementById('editOrgStart').value = org.subStart; document.getElementById('editOrgEnd').value = org.subEnd; document.getElementById('editOrgStatus').value = org.status || 'active'; document.getElementById('editOrgModal').classList.remove('hidden'); }
+        function saveOrgEdit() { if(!hasPermission(['admin'])) return; const org = orgsDB.find(o => o.id === document.getElementById('editOrgId').value); if(!org) return; org.name = document.getElementById('editOrgName').value; org.subStart = document.getElementById('editOrgStart').value; org.subEnd = document.getElementById('editOrgEnd').value; org.status = document.getElementById('editOrgStatus').value; saveDB(); renderAdminOrgs(); closeModal('editOrgModal'); alert("تم الحفظ"); }
+
+        // =========================================================
+        // Users (Admin & Branch Supervisor)
+        // =========================================================
+        function renderBranchCheckboxes(mode, selectedOrg = null, selectedBranches = []) {
+            let orgId = selectedOrg || document.getElementById(mode === 'new' ? 'nuOrg' : 'editUserOrg_mock_id').value;
+            if (currentUser.role === 'branch_supervisor') orgId = currentUser.orgId; // Force scope
+            const container = document.getElementById(mode === 'new' ? 'nuBranchesGrid' : 'editUserBranches'); container.innerHTML = '';
+            if(orgId === 'all') { container.innerHTML = '<span class="text-xs text-gray-500 font-bold mt-2 block">مدير النظام لديه صلاحية مطلقة</span>'; return; }
+            
+            let orgBranches = clinicsDB.filter(c => c.orgId === orgId);
+            if (currentUser.role === 'branch_supervisor') orgBranches = orgBranches.filter(c => currentUser.clinics.includes(c.id));
+            
+            orgBranches.forEach(b => {
+                const checked = selectedBranches.includes(b.id) ? 'checked' : '';
+                container.innerHTML += `<label class="flex items-center space-x-2 space-x-reverse text-sm font-bold text-gray-700 bg-white p-2 border rounded"><input type="checkbox" value="${b.id}" class="${mode}-branch-check w-4 h-4 text-pink-600 rounded" ${checked}><span>${b.name}</span></label>`;
+            });
+        }
+
+        function addNewSystemUser() {
+            if (!hasPermission(['admin', 'branch_supervisor'])) return alert("غير مصرح");
+            const name = document.getElementById('nuName').value.trim(); const username = document.getElementById('nuUser').value.trim(); const pass = document.getElementById('nuPass').value; const role = document.getElementById('nuRole').value; const spec = document.getElementById('nuSpecialty').value.trim();
+            const orgId = currentUser.role === 'branch_supervisor' ? currentUser.orgId : document.getElementById('nuOrg').value;
+            
+            if (currentUser.role === 'branch_supervisor' && (role === 'admin' || role === 'branch_supervisor')) return alert("لا تملك صلاحية إنشاء هذا الدور.");
+
+            let userClinics = []; 
+            if (orgId === 'all') userClinics = ['all']; else {
+                document.querySelectorAll('.new-branch-check:checked').forEach(chk => { if(currentUser.role === 'admin' || currentUser.clinics.includes(chk.value)) userClinics.push(chk.value); });
+            }
+            if(!name || !username || !pass) return alert("أكمل البيانات"); if(usersDB.find(u => u.username === username)) return alert("الاسم مستخدم مسبقاً!"); if(role === 'doctor' && !spec) return alert("أدخل التخصص"); if(userClinics.length===0) return alert("حدد فرعاً");
+            
+            let id = 'U-' + generateId(); usersDB.push({ id, name, username, pass, role, orgId, clinics: userClinics, status: 'active', specialty: role==='doctor'?spec:null }); 
+            logAudit('Create User', id); saveDB(); renderAdminUsers(); alert("تم الإنشاء");
+        }
+
+        function renderAdminUsers() {
+            const tbody = document.getElementById('usersTableBody'); tbody.innerHTML = '';
+            let visibleUsers = usersDB;
+            if (currentUser.role === 'branch_supervisor') {
+                visibleUsers = usersDB.filter(u => u.orgId === currentUser.orgId && u.clinics.some(c => currentUser.clinics.includes(c)) && u.role !== 'admin' && u.id !== currentUser.id);
+            }
+            visibleUsers.forEach(u => {
+                let branchesHtml = u.clinics.includes('all') ? '<span class="bg-yellow-100 text-yellow-800 text-[10px] px-2 py-1 rounded font-bold">الكل</span>' : clinicsDB.filter(c => u.clinics.includes(c.id)).map(b => `<span class="bg-gray-100 text-gray-700 text-[10px] px-2 py-1 rounded m-0.5 inline-block border">${b.name}</span>`).join('');
+                const orgName = u.orgId === 'all' ? 'الإدارة' : (orgsDB.find(o => o.id === u.orgId)||{}).name;
+                const stat = u.status === 'suspended' ? '<span class="text-red-600 font-bold text-xs bg-red-100 px-2 py-1 rounded">موقوف</span>' : '<span class="text-green-600 font-bold text-xs bg-green-100 px-2 py-1 rounded">مفعل</span>';
+                tbody.innerHTML += `<tr class="hover:bg-slate-50 border-b"><td class="p-4"><p class="font-bold">${escapeHTML(u.name)}</p><p class="text-xs text-gray-500 en-font">@${escapeHTML(u.username)}</p></td><td class="p-4 font-extrabold text-sm text-blue-800">${u.role}</td><td class="p-4 text-xs font-bold text-gray-600">${escapeHTML(orgName)}<br>${branchesHtml}</td><td class="p-4 text-center">${stat}</td><td class="p-4 text-center"><button onclick="openEditUser('${u.id}')" class="bg-pink-600 text-white px-3 py-1 rounded text-xs shadow hover:bg-pink-700 font-bold"><i class="fas fa-cog"></i> تعديل</button></td></tr>`;
+            });
+        }
+
+        function openEditUser(id) {
+            const u = usersDB.find(x => x.id === id); if(!u) return;
+            if(currentUser.role === 'branch_supervisor' && u.role === 'admin') return alert("غير مصرح");
+            document.getElementById('editUserId').value = u.id; document.getElementById('editUserName').value = u.name; document.getElementById('editUserPass').value = ''; document.getElementById('editUserRole').value = u.role; document.getElementById('editUserSpec').value = u.specialty || ''; document.getElementById('editUserStatus').value = u.status || 'active';
+            const hiddenOrg = document.createElement('input'); hiddenOrg.type = 'hidden'; hiddenOrg.id = 'editUserOrg_mock_id'; hiddenOrg.value = u.orgId; document.getElementById('editUserModal').appendChild(hiddenOrg);
+            renderBranchCheckboxes('edit', u.orgId, u.clinics); document.getElementById('editUserModal').classList.remove('hidden');
+        }
+
+        function saveUserEdit() {
+            if (!hasPermission(['admin', 'branch_supervisor'])) return;
+            const u = usersDB.find(x => x.id === document.getElementById('editUserId').value); if(!u) return;
+            u.name = document.getElementById('editUserName').value; const pass = document.getElementById('editUserPass').value; if(pass) u.pass = pass;
+            u.role = document.getElementById('editUserRole').value; u.specialty = document.getElementById('editUserSpec').value; u.status = document.getElementById('editUserStatus').value;
+            if(u.orgId !== 'all') { u.clinics = []; document.querySelectorAll('.edit-branch-check:checked').forEach(c => u.clinics.push(c.value)); }
+            logAudit('Edit User', u.id); saveDB(); renderAdminUsers(); closeModal('editUserModal'); alert("تم التعديل");
+        }
+
+        // =========================================================
+        // Reports (Scoped by permissions)
+        // =========================================================
+        function generateReports() {
+            const startD = document.getElementById('repStartDate').value; const endD = document.getElementById('repEndDate').value;
+            if(!startD || !endD) return alert("اختر الفترة");
+            let totalRev = 0; let doneCount = 0; let waitCount = 0; let cancelCount = 0; const tbody = document.getElementById('reportsTableBody'); tbody.innerHTML = '';
+            let reportData = [];
+            patients.forEach(p => p.appointments.forEach(app => {
+                if(app.date >= startD && app.date <= endD) {
+                    let canView = currentUser.role === 'admin' || currentUser.clinics.includes(app.clinicId);
+                    if(currentUser.role === 'doctor' && app.doctorId !== currentUser.id) canView = false;
+                    if(canView) {
+                        reportData.push({ ...app, pName: p.fName });
+                        if(app.status === 'completed' || app.status === 'waiting') totalRev += app.price;
+                        if(app.status === 'completed') doneCount++;
+                        if(app.status === 'waiting') waitCount++;
+                        if(app.status === 'cancelled') cancelCount++;
+                    }
+                }
+            }));
+            document.getElementById('repTotalRev').innerText = totalRev; document.getElementById('repTotalDone').innerText = doneCount; document.getElementById('repTotalWait').innerText = waitCount; document.getElementById('repTotalCancel').innerText = cancelCount;
+            reportData.sort((a,b) => (a.date+a.time) > (b.date+b.time) ? -1 : 1);
+            reportData.forEach(r => {
+                let sColor = r.status === 'completed' ? 'text-green-600' : r.status === 'waiting' ? 'text-blue-600' : r.status === 'cancelled' ? 'text-red-600' : 'text-yellow-600';
+                tbody.innerHTML += `<tr class="border-b hover:bg-slate-50"><td class="p-4 text-xs font-bold en-font" dir="ltr">${r.date} <br> ${r.time}</td><td class="p-4 font-extrabold text-gray-800">${escapeHTML(r.pName)}</td><td class="p-4 text-xs text-gray-600 font-bold">${escapeHTML(r.service)}</td><td class="p-4 font-bold en-font text-emerald-600">${r.price}</td><td class="p-4 font-bold text-xs ${sColor}">${r.status}</td></tr>`;
+            });
+            if(reportData.length === 0) tbody.innerHTML = `<tr><td colspan="5" class="text-center p-8 text-gray-400 font-bold">لا يوجد</td></tr>`;
+        }
+
+        // =========================================================
+        // Bookings
+        // =========================================================
+        function populateBookingClinics() { const sel = document.getElementById('bClinicSelect'); sel.innerHTML = ''; let first = null; clinicsDB.forEach(c => { if(c.status === 'active' && (currentUser.role === 'admin' || currentUser.clinics.includes(c.id))) { if(!first) first = c; sel.innerHTML += `<option value="${c.id}">${escapeHTML(c.name)}</option>`; } }); if(first) updateBookingSpecs(); }
+        function updateBookingSpecs() { const cId = document.getElementById('bClinicSelect').value; const c = clinicsDB.find(x => x.id === cId); const sel = document.getElementById('bSpecialtySelect'); sel.innerHTML = ''; if(c) { c.specialties.forEach(sp => { sel.innerHTML += `<option value="${sp}">${sp}</option>`; }); updateBookingDoctors(); } }
+        function updateBookingDoctors() { const cId = document.getElementById('bClinicSelect').value; const spec = document.getElementById('bSpecialtySelect').value; const docSel = document.getElementById('bDoctorSelect'); docSel.innerHTML = ''; let found = false; usersDB.forEach(u => { if(u.role === 'doctor' && u.status === 'active' && u.specialty === spec && (u.clinics.includes('all') || u.clinics.includes(cId))) { docSel.innerHTML += `<option value="${u.id}">${escapeHTML(u.name)}</option>`; found = true; } }); if(!found) docSel.innerHTML = `<option value="">لا يوجد أطباء</option>`; }
+        
+        function registerPatient() {
+            if(!hasPermission(['admin', 'reception'])) return;
+            const n = document.getElementById('bName').value.trim(); const p = document.getElementById('bPhone').value.trim(); const d = document.getElementById('bDate').value; const t = document.getElementById('bTime').value; const docId = document.getElementById('bDoctorSelect').value; const cid = document.getElementById('bClinicSelect').value;
+            if(clinicsDB.find(c=>c.id===cid)?.status !== 'active') return alert("الفرع غير نشط!");
+            if(!n || !p || !d || !t || !docId) return alert("أكمل البيانات");
+            let pat = patients.find(x => x.phone === p); if(!pat) { pat = { id: 'PT-'+generateId(), fName: n, nationalId: document.getElementById('bNationalId').value, phone: p, dob: document.getElementById('bDob').value, history: [], visits: [], appointments: [] }; patients.push(pat); }
+            pat.appointments.push({ id: generateId().toString(), date: d, time: t, clinicId: cid, doctorId: docId, specialty: document.getElementById('bSpecialtySelect').value, service: document.getElementById('bServiceSelect').options[document.getElementById('bServiceSelect').selectedIndex].text, price: Number(document.getElementById('bServiceSelect').value), status: 'pending' });
+            renderBookingsTable(); saveDB(); alert("تم الحجز"); document.getElementById('bName').value=''; document.getElementById('bPhone').value=''; document.getElementById('bNationalId').value='';
+        }
+        
+        function renderBookingsTable() {
+            const tbody = document.getElementById('todayBookingsBody'); tbody.innerHTML = ''; const viewDate = document.getElementById('viewDateFilter').value; let allApps = [];
+            patients.forEach(p => p.appointments.forEach(app => { if(app.date === viewDate && app.status !== 'cancelled' && (currentUser.role === 'admin' || currentUser.clinics.includes(app.clinicId))) allApps.push({ ...app, pId: p.id, pName: p.fName }); }));
+            allApps.sort((a,b) => a.time > b.time ? 1 : -1);
+            allApps.forEach(app => { 
+                let btns = app.status === 'pending' ? `<button onclick="openBilling('${app.id}', '${app.pId}', '${app.price}', '${escapeHTML(app.service)}')" class="bg-emerald-500 text-white px-3 py-1 rounded text-xs font-bold shadow">تحصيل</button>` : '-';
+                tbody.innerHTML += `<tr class="border-b"><td class="p-4 text-xs en-font font-bold" dir="ltr">${app.time}</td><td class="p-4 font-extrabold">${escapeHTML(app.pName)}</td><td class="p-4 text-xs">${(usersDB.find(u=>u.id===app.doctorId)||{}).name}<br><span class="text-blue-500">${escapeHTML(app.specialty)}</span></td><td class="p-4">${app.status}</td><td class="p-4 text-center">${btns}</td></tr>`; 
+            });
+        }
+        function openBilling(appId, pId, price, serviceTxt) { document.getElementById('billAppId').value = appId; document.getElementById('billPatId').value = pId; document.getElementById('billServiceTxt').innerText = serviceTxt; document.getElementById('billAmount').innerText = price; document.getElementById('billingModal').classList.remove('hidden'); }
+        function confirmArrivalAndPay() { const p = patients.find(x => x.id === document.getElementById('billPatId').value); const app = p.appointments.find(x => x.id == document.getElementById('billAppId').value); if(app) { app.status = 'waiting'; } closeModal('billingModal'); renderBookingsTable(); saveDB(); }
+
+        // =========================================================
+        // EMR & Doctor Functions (Tabs & Unified Saving)
+        // =========================================================
+        function renderDoctorBookings() {
+            const tbody = document.getElementById('doctorBookingsBody'); tbody.innerHTML = ''; const todayStr = getLocalISODate(); const filterStat = document.getElementById('docAppStatusFilter').value; let total = 0;
+            patients.forEach(p => p.appointments.forEach(app => {
+                if(app.clinicId === currentSessionClinicId && app.doctorId === currentUser.id && app.date === todayStr && app.status === filterStat) {
+                    total++; tbody.innerHTML += `<tr class="border-b"><td class="p-4 font-bold en-font" dir="ltr">${app.time}</td><td class="p-4 font-extrabold text-lg text-indigo-800">${escapeHTML(p.fName)}</td><td class="p-4 text-xs font-bold text-gray-600">${escapeHTML(app.service)}</td><td class="p-4 text-center"><button onclick="startMedicalVisit('${app.id}', '${p.id}')" class="bg-indigo-600 text-white px-5 py-2.5 rounded-lg text-sm font-bold shadow-sm">${filterStat === 'waiting' ? '<i class="fas fa-stethoscope mx-1"></i> فحص' : '<i class="fas fa-folder-open mx-1"></i> مراجعة'}</button></td></tr>`;
+                }
+            }));
+            if(total === 0) tbody.innerHTML = `<tr><td colspan="4" class="text-center p-10 text-gray-400 font-bold">لا يوجد مرضى حالياً.</td></tr>`;
+        }
+
+        function startMedicalVisit(appId, patId) {
+            currentActiveAppId = appId; currentActivePatient = patients.find(p => p.id === patId); 
+            tempPrescription = []; tempLabReqs = []; tempRadReqs = [];
+            document.getElementById('currentPrescriptionList').innerHTML=''; document.getElementById('labRequestsList').innerHTML=''; document.getElementById('radRequestsList').innerHTML='';
+            document.getElementById('diagnosisWorkspace').style.display = 'block'; document.getElementById('noPatientAlertDiagnosis').style.display = 'none';
+            
+            document.getElementById('headerPatientName').innerText = currentActivePatient.fName;
+            document.getElementById('headerPatientId').innerText = currentActivePatient.id;
+            document.getElementById('headerPatientAge').innerText = calculateAge(currentActivePatient.dob);
+            document.getElementById('headerPatientPhone').innerText = currentActivePatient.phone;
+            document.getElementById('headerClinicName').innerText = (clinicsDB.find(c=>c.id===currentSessionClinicId)||{}).name;
+            document.getElementById('headerDoctorName').innerText = currentUser.name;
+            document.getElementById('headerSpecialty').innerText = currentUser.specialty;
+            
+            ['vitalWeight','vitalHeight','vitalBMI','vitalBP','vitalSugar','vitalPulse','vitalTemp','vitalSpO2','examComplaint','examNotes','detailedDiagnosis','labReqName','radReqArea','radReqIndication','radReqNotes'].forEach(id => document.getElementById(id).value = '');
+            
+            renderMedicalHistory(); switchEmrTab('tab-vitals'); navigate('diagnosis');
+        }
+
+        function switchEmrTab(tabId) {
+            document.querySelectorAll('.emr-tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.emr-tab-btn').forEach(btn => { btn.classList.remove('border-indigo-600', 'text-indigo-700', 'bg-indigo-50'); btn.classList.add('border-transparent', 'text-gray-500'); });
+            document.getElementById(tabId).classList.remove('hidden');
+            const activeBtn = document.getElementById('btn-' + tabId); activeBtn.classList.remove('border-transparent', 'text-gray-500'); activeBtn.classList.add('border-indigo-600', 'text-indigo-700', 'bg-indigo-50');
+        }
+
+        function calculateBMI() { const w = parseFloat(document.getElementById('vitalWeight').value); const h = parseFloat(document.getElementById('vitalHeight').value) / 100; if (w > 0 && h > 0) { document.getElementById('vitalBMI').value = (w / (h * h)).toFixed(1); } }
+        
+        function addPrescriptionItem() { const n = document.getElementById('drugName').value.trim(); if(!n) return; tempPrescription.push({ name: n, dose: document.getElementById('drugDose').value, dur: document.getElementById('drugDur').value }); document.getElementById('drugName').value = ''; document.getElementById('currentPrescriptionList').innerHTML += `<div class="p-3 border rounded-lg bg-white shadow-sm font-bold text-sm"><i class="fas fa-check text-green-500 mx-1"></i> ${escapeHTML(n)} - ${document.getElementById('drugDose').value} (${document.getElementById('drugDur').value})</div>`; }
+        function addLabRequest() { const n = document.getElementById('labReqName').value.trim(); if(!n) return; const id = generateId(); tempLabReqs.push({ reqId: id, name: n, status: 'requested', result: null }); document.getElementById('labReqName').value=''; document.getElementById('labReqPredefined').value=''; document.getElementById('labRequestsList').innerHTML += `<div class="p-3 border border-indigo-100 rounded-lg bg-indigo-50 text-indigo-800 font-bold text-sm shadow-sm flex justify-between"><span><i class="fas fa-vial mx-2"></i> ${escapeHTML(n)}</span> <span class="bg-yellow-200 text-yellow-800 text-[10px] px-2 py-1 rounded">مطلوب (Requested)</span></div>`; }
+        function addRadRequest() { 
+            const type = document.getElementById('radReqType').value; const area = document.getElementById('radReqArea').value.trim(); const ind = document.getElementById('radReqIndication').value.trim(); const notes = document.getElementById('radReqNotes').value.trim();
+            if(!area) return alert("الرجاء إدخال المنطقة المطلوبة"); const n = `${type} - ${area}`; const id = generateId();
+            tempRadReqs.push({ reqId: id, type: type, area: area, indication: ind, notes: notes, name: n, status: 'requested', result: null }); 
+            document.getElementById('radReqArea').value=''; document.getElementById('radReqIndication').value=''; document.getElementById('radReqNotes').value='';
+            document.getElementById('radRequestsList').innerHTML += `<div class="p-3 border border-indigo-100 rounded-lg bg-indigo-50 text-indigo-800 font-bold text-sm shadow-sm flex justify-between"><span><i class="fas fa-x-ray mx-2"></i> ${escapeHTML(n)}</span> <span class="bg-yellow-200 text-yellow-800 text-[10px] px-2 py-1 rounded">مطلوب (Requested)</span></div>`; 
+        }
+
+        function endAndSaveMedicalEncounter() {
+            if(!hasPermission(['doctor'])) return alert("غير مصرح");
+            if(!currentActivePatient) return;
+            const visitId = 'V-' + generateId();
+            
+            const visitRecord = {
+                visitId: visitId, appId: currentActiveAppId, date: getLocalISODate(),
+                clinicId: currentSessionClinicId, clinicName: (clinicsDB.find(c => c.id === currentSessionClinicId) || {}).name,
+                doctorId: currentUser.id, doctorName: currentUser.name, specialty: currentUser.specialty,
+                vitals: { weight: document.getElementById('vitalWeight').value, height: document.getElementById('vitalHeight').value, bmi: document.getElementById('vitalBMI').value, bp: document.getElementById('vitalBP').value, sugar: document.getElementById('vitalSugar').value, pulse: document.getElementById('vitalPulse').value, temp: document.getElementById('vitalTemp').value, spo2: document.getElementById('vitalSpO2').value },
+                exam: { complaint: document.getElementById('examComplaint').value, notes: document.getElementById('examNotes').value },
+                diagnosis: document.getElementById('detailedDiagnosis').value,
+                prescription: [...tempPrescription], labRequests: [...tempLabReqs], radiologyRequests: [...tempRadReqs], isReadOnly: true
+            };
+            
+            currentActivePatient.visits = currentActivePatient.visits || [];
+            currentActivePatient.visits.unshift(visitRecord);
+            
+            const app = currentActivePatient.appointments.find(a => a.id === currentActiveAppId);
+            if(app) app.status = 'completed';
+
+            logAudit('Visit Completed', visitId); saveDB(); 
+            
+            // Print Rx
+            if(tempPrescription.length > 0 || visitRecord.diagnosis || tempLabReqs.length > 0 || tempRadReqs.length > 0) {
+                let p = `<div style="text-align:center; border-bottom:2px solid #1e3a8a; padding-bottom:15px; margin-bottom:30px;"><h1 style="font-size:28px; font-weight:bold; color:#1e3a8a;">Cloud Clinic EMR</h1><p style="font-size:18px;">الطبيب: <strong>${escapeHTML(currentUser.name)}</strong> - ${escapeHTML(currentUser.specialty)}</p></div><div style="font-weight:bold; font-size:18px; margin-bottom:20px;">المريض: ${escapeHTML(currentActivePatient.fName)} | التاريخ: ${visitRecord.date}</div>`;
+                if(visitRecord.diagnosis) p += `<p><strong>التشخيص:</strong> ${escapeHTML(visitRecord.diagnosis)}</p><br>`;
+                if(tempPrescription.length > 0) { p += `<h2 style="font-size:20px; color:#1e3a8a; border-bottom:1px solid #ccc; margin-bottom:10px;">Rx (الروشتة)</h2>`; tempPrescription.forEach(d => p += `<div style="margin-bottom:15px; font-weight:bold; font-size:18px;">- ${escapeHTML(d.name)} <br><span style="font-size:14px; color:#555;">الجرعة: ${escapeHTML(d.dose)} | ${escapeHTML(d.dur)}</span></div>`); }
+                if(tempLabReqs.length > 0) { p += `<h2 style="font-size:20px; color:#1e3a8a; border-bottom:1px solid #ccc; margin-bottom:10px; margin-top:20px;">طلبات التحاليل</h2><ul style="font-weight:bold;">${tempLabReqs.map(l=>`<li>${escapeHTML(l.name)}</li>`).join('')}</ul>`; }
+                if(tempRadReqs.length > 0) { p += `<h2 style="font-size:20px; color:#1e3a8a; border-bottom:1px solid #ccc; margin-bottom:10px; margin-top:20px;">طلبات الأشعة</h2><ul style="font-weight:bold;">${tempRadReqs.map(r=>`<li>${escapeHTML(r.name)} -${escapeHTML(r.indication)}</li>`).join('')}</ul>`; }
+                document.getElementById('printArea').innerHTML = p; document.getElementById('printArea').classList.remove('hidden'); setTimeout(() => { window.print(); document.getElementById('printArea').classList.add('hidden'); }, 200);
+            }
+            alert("تم حفظ بيانات الزيارة بالكامل في السجل الطبي.");
+            navigate('doctorHome'); currentActivePatient = null; document.getElementById('diagnosisWorkspace').style.display = 'none'; document.getElementById('noPatientAlertDiagnosis').style.display = 'flex';
+        }
+
+        // =========================================================
+        // Medical History & Lab/Rad Results Management
+        // =========================================================
+        function renderMedicalHistory() {
+            let h = '';
+            (currentActivePatient.visits || []).forEach(v => {
+                h += `<div class="bg-gray-50 p-4 border border-indigo-200 rounded-lg shadow-sm mb-4">
+                    <div class="flex justify-between items-center mb-3 border-b pb-2"><strong class="text-indigo-900 text-sm font-extrabold"><i class="fas fa-calendar-check mx-1"></i> ${v.date} | د. ${escapeHTML(v.doctorName)} (${escapeHTML(v.specialty)})</strong><span class="text-xs text-gray-500 en-font bg-gray-200 px-2 py-1 rounded">${v.visitId}</span></div>`;
+                if(v.vitals.bp || v.vitals.weight) h += `<p class="text-xs font-bold text-gray-600 mb-2">Vitals: BP ${v.vitals.bp || '-'}, Wt ${v.vitals.weight || '-'} kg</p>`;
+                if(v.diagnosis) h += `<p class="text-sm text-gray-800 mb-2"><strong>التشخيص:</strong> ${escapeHTML(v.diagnosis)}</p>`;
+                if(v.prescription.length > 0) h += `<p class="text-sm font-bold text-blue-800 mb-2"><i class="fas fa-pills mx-1"></i> أدوية مصروفة: ${v.prescription.map(d=>d.name).join('، ')}</p>`;
+                
+                // Render Labs
+                if(v.labRequests && v.labRequests.length > 0) {
+                    h += `<div class="mt-3 border-t pt-2"><h4 class="text-xs font-bold text-purple-800 mb-1"><i class="fas fa-vial mx-1"></i>التحاليل الطبية:</h4><div class="space-y-2">`;
+                    v.labRequests.forEach((lab, index) => {
+                        h += `<div class="bg-white p-2 border rounded shadow-sm text-sm flex flex-col gap-1">
+                                <div class="flex justify-between items-center font-bold"><span>${escapeHTML(lab.name)}</span> ${lab.status === 'requested' ? `<button onclick="openTestResultModal('${currentActivePatient.id}', '${v.visitId}', '${lab.reqId}', 'lab')" class="text-[10px] bg-purple-100 text-purple-700 px-2 py-1 rounded hover:bg-purple-200">إضافة النتيجة</button>` : `<span class="text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded">مكتمل</span>`}</div>`;
+                        if(lab.status === 'completed' && lab.result) h += `<div class="text-xs text-gray-700 mt-1 whitespace-pre-wrap font-semibold border-t pt-1 border-dashed">${escapeHTML(lab.result)} <br><span class="text-[10px] text-gray-400">بواسطة: ${escapeHTML(lab.resultBy)} (${lab.resultDate})</span></div>`;
+                        h += `</div>`;
+                    });
+                    h += `</div></div>`;
+                }
+
+                // Render Radiology
+                if(v.radiologyRequests && v.radiologyRequests.length > 0) {
+                    h += `<div class="mt-3 border-t pt-2"><h4 class="text-xs font-bold text-indigo-800 mb-1"><i class="fas fa-x-ray mx-1"></i>الأشعة:</h4><div class="space-y-2">`;
+                    v.radiologyRequests.forEach((rad, index) => {
+                        h += `<div class="bg-white p-2 border rounded shadow-sm text-sm flex flex-col gap-1">
+                                <div class="flex justify-between items-center font-bold"><span>${escapeHTML(rad.name)}</span> ${rad.status === 'requested' ? `<button onclick="openTestResultModal('${currentActivePatient.id}', '${v.visitId}', '${rad.reqId}', 'rad')" class="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-1 rounded hover:bg-indigo-200">إضافة التقرير</button>` : `<span class="text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded">مكتمل</span>`}</div>`;
+                        if(rad.status === 'completed' && rad.result) h += `<div class="text-xs text-gray-700 mt-1 whitespace-pre-wrap font-semibold border-t pt-1 border-dashed">${escapeHTML(rad.result)} <br><span class="text-[10px] text-gray-400">بواسطة: ${escapeHTML(rad.resultBy)} (${rad.resultDate})</span></div>`;
+                        h += `</div>`;
+                    });
+                    h += `</div></div>`;
+                }
+                h += `</div>`;
+            });
+            // Legacy History
+            (currentActivePatient.history || []).forEach(item => {
+                h += `<div class="bg-white p-3 border-r-4 border-gray-400 rounded-lg shadow-sm mb-3 opacity-70"><div class="flex justify-between items-center mb-2 border-b pb-1"><strong class="text-gray-700 text-xs font-extrabold">بيانات قديمة (Legacy)</strong><span class="text-xs text-gray-500 en-font bg-gray-100 px-2 py-1 rounded">${item.date}</span></div>`;
+                if(item.type === 'diagnosis') h += `<div class="text-gray-700 text-sm">${escapeHTML(item.text).replace(/\n/g, '<br>')}</div>`;
+                else if (item.type === 'unified_rx') h += `<div class="text-sm font-bold text-blue-800"><i class="fas fa-pills mx-1"></i>أدوية: <ul class="list-disc list-inside text-xs mt-1 text-gray-700">${item.rx.map(d=>`<li>${escapeHTML(d.name)}</li>`).join('')}</ul></div>`;
+                h += `</div>`;
+            });
+            document.getElementById('medicalHistoryPanel').innerHTML = h || `<div class="flex flex-col items-center justify-center h-full opacity-30"><i class="fas fa-folder-open text-6xl mb-4"></i><p class="font-bold text-lg">لا يوجد تاريخ مرضي مسجل</p></div>`;
+        }
+
+        // --- Logic for saving Lab/Rad Results ---
+        function openTestResultModal(patId, visitId, reqId, type) {
+            if (!hasPermission(['admin', 'doctor'])) return alert("غير مصرح لك بإضافة النتائج.");
+            const pat = patients.find(p => p.id === patId); if(!pat) return;
+            const visit = pat.visits.find(v => v.visitId === visitId); if(!visit) return;
+            const reqArray = type === 'lab' ? visit.labRequests : visit.radiologyRequests;
+            const req = reqArray.find(r => r.reqId == reqId); if(!req) return;
+
+            document.getElementById('trPatId').value = patId;
+            document.getElementById('trVisitId').value = visitId;
+            document.getElementById('trReqId').value = reqId;
+            document.getElementById('trReqType').value = type;
+            document.getElementById('trTitle').innerText = req.name;
+            document.getElementById('trResultText').value = '';
+            
+            document.getElementById('testResultModal').classList.remove('hidden');
+        }
+
+        function saveTestResult() {
+            const patId = document.getElementById('trPatId').value;
+            const visitId = document.getElementById('trVisitId').value;
+            const reqId = document.getElementById('trReqId').value;
+            const type = document.getElementById('trReqType').value;
+            const resultText = document.getElementById('trResultText').value.trim();
+            
+            if(!resultText) return alert("الرجاء إدخال النتيجة أو التقرير.");
+
+            const pat = patients.find(p => p.id === patId);
+            const visit = pat.visits.find(v => v.visitId === visitId);
+            const reqArray = type === 'lab' ? visit.labRequests : visit.radiologyRequests;
+            const req = reqArray.find(r => r.reqId == reqId);
+            
+            req.status = 'completed';
+            req.result = resultText;
+            req.resultDate = getLocalISODate();
+            req.resultBy = currentUser.name;
+
+            logAudit('Update Test Result', `${visitId}-${reqId}`, `Type: ${type}`);
+            saveDB();
+            closeModal('testResultModal');
+            
+            // تحديث العرض بناءً على الشاشة النشطة
+            if (document.getElementById('diagnosis').classList.contains('hidden-page') === false) {
+                renderMedicalHistory(); // Refresh history panel if currently examining patient
+            } else if (document.getElementById('doctorReviews').classList.contains('hidden-page') === false) {
+                // Future expansion: if viewed from a standalone history viewer
+            }
+            alert("تم حفظ النتيجة وتوثيقها بالملف الطبي بنجاح.");
+        }
+
+        function renderDoctorReviews() {
+            if(currentUser.role !== 'doctor') return;
+            const from = document.getElementById('revDateFrom').value; const to = document.getElementById('revDateTo').value;
+            const tbody = document.getElementById('doctorReviewsBody'); tbody.innerHTML = '';
+            let visits = [];
+            patients.forEach(p => {
+                (p.visits || []).forEach(v => {
+                    if(v.doctorId === currentUser.id) {
+                        if((!from || v.date >= from) && (!to || v.date <= to)) { visits.push({...v, pName: p.fName, pId: p.id}); }
+                    }
+                });
+            });
+            visits.sort((a,b) => a.date > b.date ? -1 : 1);
+            visits.forEach(v => {
+                tbody.innerHTML += `<tr class="border-b hover:bg-slate-50"><td class="p-4 font-bold en-font text-xs" dir="ltr">${v.date}</td><td class="p-4 text-xs font-bold text-gray-600">${escapeHTML(v.clinicName)}</td><td class="p-4 font-extrabold">${escapeHTML(v.pName)}</td><td class="p-4 text-sm text-gray-700 truncate max-w-xs">${escapeHTML(v.diagnosis || 'بدون تشخيص')}</td></tr>`;
+            });
+            if(visits.length === 0) tbody.innerHTML = `<tr><td colspan="4" class="text-center p-8 text-gray-400 font-bold">لا توجد زيارات سابقة.</td></tr>`;
+        }
+        
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+    </script>
+</body>
+</html>
